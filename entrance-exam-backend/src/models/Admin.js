@@ -7,6 +7,7 @@ const adminSchema = new mongoose.Schema({
   createdDate: { type: Date, default: Date.now },
   questionsCreated: { type: Number, default: 0 },
   accessStatus: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+  role: { type: String, enum: ["admin", "superadmin"], default: "admin" }, // Role added
 });
 
 module.exports = mongoose.model('Admin', adminSchema);

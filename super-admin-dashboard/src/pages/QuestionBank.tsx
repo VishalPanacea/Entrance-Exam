@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { Delete, UploadFile } from "@mui/icons-material";
 import * as XLSX from "xlsx";
+import axios from "axios";
 
 const QuestionBank = () => {
   const [questions, setQuestions] = useState([]);
@@ -23,53 +24,62 @@ const QuestionBank = () => {
   const rowsPerPage = 10;
   const theme = useTheme();
 
-  // Handle File Upload
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    const reader = new FileReader();
+  // Fetch Questions from Backend
+  const fetchQuestions = async () => {
+    try {
+      const response = await axios.get("http://localhost:5005/api/questions/questions");
+      setQuestions(response.data);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+    }
+  };
 
-    reader.onload = (e) => {
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  // Handle File Upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
-      const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-      setQuestions(sheet);
+      const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+      const formattedQuestions = sheet.slice(1).map((row) => ({
+        questionDescription: row[0],
+        entranceExam: row[1] ? row[1].split(", ") : [],
+        questionCategory: row[2] ? row[2].split(", ") : [],
+        questionSubCategory: row[3] ? row[3].split(", ") : [],
+        responseOptions: row.slice(4, 8),
+        correctAnswerIndex: parseInt(row[8], 10),
+        questionMarks: parseInt(row[9], 10),
+        complexity: row[10],
+        negativeScore: parseFloat(row[11]),
+        status: "Active",
+      }));
+
+      try {
+        await axios.post("http://localhost:5005/api/questions/import", { questions: formattedQuestions });
+        fetchQuestions();
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
     };
     reader.readAsArrayBuffer(file);
   };
 
-  // Handle Delete Question
-  const handleDelete = (index) => {
-    const updatedQuestions = questions.filter((_, i) => i !== index);
-    setQuestions(updatedQuestions);
-  };
-
-  // Handle Toggle Active/Inactive
-  const toggleStatus = (index) => {
-    setQuestions((prev) =>
-      prev.map((q, i) =>
-        i === index ? { ...q, Status: q.Status === "Active" ? "Inactive" : "Active" } : q
-      )
-    );
-  };
-
   return (
-    <Box sx={{ p: 0, mt: 0 }}>
-
-      {/* <Typography variant="h5" fontWeight="bold" gutterBottom>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" fontWeight="bold" gutterBottom>
         Question Bank
-      </Typography> */}
+      </Typography>
 
-      {/* Pagination on Top */}
-      {questions.length > 0 && (
-        <Pagination
-          count={Math.ceil(questions.length / rowsPerPage)}
-          page={page}
-          onChange={(event, value) => setPage(value)}
-          sx={{ mb: 2, display: "flex", justifyContent: "center" }}
-        />
-      )}
-
+      {/* File Upload Button */}
       <Button
         variant="contained"
         component="label"
@@ -85,24 +95,12 @@ const QuestionBank = () => {
         <input type="file" hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
       </Button>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 3, height:"78vh" }}>
+      {/* Question Table */}
+      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 3, height: "78vh" }}>
         <Table>
           <TableHead>
             <TableRow sx={{ backgroundColor: theme.palette.primary.light }}>
-              {[
-                "Qstn ID",
-                "Description",
-                "Entrance Exam",
-                "Category",
-                "Sub-Category",
-                "Response Options",
-                "Correct Answer",
-                "Marks",
-                "Complexity",
-                "Negative Score",
-                "Status",
-                "Actions",
-              ].map((head) => (
+              {["Qstn ID", "Description", "Entrance Exam", "Category", "Sub-Category", "Response Options", "Correct Answer", "Marks", "Complexity", "Negative Score", "Actions"].map((head) => (
                 <TableCell key={head} sx={{ fontWeight: "bold", color: theme.palette.primary.contrastText }}>
                   {head}
                 </TableCell>
@@ -112,36 +110,25 @@ const QuestionBank = () => {
           <TableBody>
             {questions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} align="center" sx={{ py: 4, fontSize: "1.1rem", color: "#888" }}>
+                <TableCell colSpan={11} align="center" sx={{ py: 4, fontSize: "1.1rem", color: "#888" }}>
                   No questions available. Upload an Excel file to add questions.
                 </TableCell>
               </TableRow>
             ) : (
               questions.slice((page - 1) * rowsPerPage, page * rowsPerPage).map((question, index) => (
                 <TableRow key={index} sx={{ "&:nth-of-type(even)": { backgroundColor: "#f9f9f9" } }}>
-                  <TableCell>{question["Qstn ID"]}</TableCell>
-                  <TableCell>{question["Qstn Description"]}</TableCell>
-                  <TableCell>{question["Entrance Exam"]}</TableCell>
-                  <TableCell>{question["Qstn Category"]}</TableCell>
-                  <TableCell>{question["Qstn Sub-Category"]}</TableCell>
-                  <TableCell>{question["Response Options"]}</TableCell>
-                  <TableCell>{question["Correct answer index"]}</TableCell>
-                  <TableCell>{question["Qstn Marks"]}</TableCell>
-                  <TableCell>{question["Complexity"]}</TableCell>
-                  <TableCell>{question["Negative Score"]}</TableCell>
-                  <TableCell
-                    sx={{
-                      color: question.Status === "Active" ? theme.palette.success.main : theme.palette.error.main,
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                    }}
-                    onClick={() => toggleStatus(index)}
-                  >
-                    {question.Status}
-                  </TableCell>
+                  <TableCell>{question._id}</TableCell>
+                  <TableCell>{question.questionDescription}</TableCell>
+                  <TableCell>{question.entranceExam.join(", ")}</TableCell>
+                  <TableCell>{question.questionCategory.join(", ")}</TableCell>
+                  <TableCell>{question.questionSubCategory.join(", ")}</TableCell>
+                  <TableCell>{question.responseOptions.join(", ")}</TableCell>
+                  <TableCell>{question.responseOptions[question.correctAnswerIndex]}</TableCell>
+                  <TableCell>{question.questionMarks}</TableCell>
+                  <TableCell>{question.complexity}</TableCell>
+                  <TableCell>{question.negativeScore}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleDelete(index)} color="error">
+                    <IconButton color="error">
                       <Delete />
                     </IconButton>
                   </TableCell>
@@ -151,6 +138,16 @@ const QuestionBank = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Pagination */}
+      {questions.length > 0 && (
+        <Pagination
+          count={Math.ceil(questions.length / rowsPerPage)}
+          page={page}
+          onChange={(event, value) => setPage(value)}
+          sx={{ mt: 2, display: "flex", justifyContent: "center" }}
+        />
+      )}
     </Box>
   );
 };

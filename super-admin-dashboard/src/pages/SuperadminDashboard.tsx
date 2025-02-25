@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -18,21 +18,46 @@ import {
   useTheme,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-
-const dummyAdmins = [
-  { id: 1, name: "Admin One", createdAt: "2025-01-01", questionsCreated: 10, status: "Active" },
-  { id: 2, name: "Admin Two", createdAt: "2025-02-01", questionsCreated: 5, status: "Inactive" },
-];
+import axios from "axios";
 
 const SuperAdminDashboard = () => {
   const theme = useTheme();
+  const [admins, setAdmins] = useState([]);
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [newAdmin, setNewAdmin] = useState({ name: "", email: "", password: "default123" });
 
+  // Fetch Admins from Backend
+  const fetchAdmins = async () => {
+    try {
+      const response = await axios.get("http://localhost:5005/api/admin/admins");
+      setAdmins(response.data);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
+  // Create New Admin
+  const handleCreateAdmin = async () => {
+    try {
+      await axios.post("http://localhost:5005/api/admin/register", newAdmin);
+      fetchAdmins(); // Refresh list after creation
+      handleClose();
+    } catch (error) {
+      console.error("Error creating admin:", error);
+    }
+  };
+
   const handleClickOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setOpen(false);
+    setNewAdmin({ name: "", email: "", password: "default123" });
+  };
 
   const handleMenuClick = (event, admin) => {
     setAnchorEl(event.currentTarget);
@@ -42,26 +67,30 @@ const SuperAdminDashboard = () => {
   const handleMenuClose = () => setAnchorEl(null);
 
   return (
-    <Box sx={{ p: 2, backgroundColor: theme.palette.background.default, minHeight: "100vh" , width:"200%"}}>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleClickOpen}
-        sx={{ mb: 2, textTransform: "none" }}
-      >
+    <Box
+      sx={{
+        p: 2,
+        backgroundColor: theme.palette.background.default,
+        minHeight: "100vh",
+        width: "155%",
+        overflowX: "auto",
+      }}
+    >
+      <Button variant="contained" color="primary" onClick={handleClickOpen} sx={{ mb: 2, textTransform: "none" }}>
         Create Admin
       </Button>
 
-      <Table sx={{ minWidth: 650, width:"100%", borderRadius: 2, boxShadow: theme.shadows[3] }}>
+      <Table
+        sx={{
+          width: "100%",
+          minWidth: 650,
+          borderRadius: 2,
+          boxShadow: theme.shadows[3],
+        }}
+      >
         <TableHead>
           <TableRow sx={{ backgroundColor: theme.palette.primary.light }}>
-            {[
-              "Name",
-              "Created Date",
-              "Questions Created",
-              "Access Status",
-              "Actions",
-            ].map((head) => (
+            {["Name", "Email", "Role", "Created Date", "Questions Created", "Access Status", "Actions"].map((head) => (
               <TableCell key={head} sx={{ fontWeight: "bold", color: theme.palette.primary.contrastText }}>
                 {head}
               </TableCell>
@@ -69,18 +98,20 @@ const SuperAdminDashboard = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {dummyAdmins.map((admin) => (
-            <TableRow key={admin.id} sx={{ "&:nth-of-type(even)": { backgroundColor: theme.palette.action.hover } }}>
+          {admins.map((admin) => (
+            <TableRow key={admin._id} sx={{ "&:nth-of-type(even)": { backgroundColor: theme.palette.action.hover } }}>
               <TableCell>{admin.name}</TableCell>
-              <TableCell>{admin.createdAt}</TableCell>
+              <TableCell>{admin.email}</TableCell>
+              <TableCell>{admin.role}</TableCell>
+              <TableCell>{new Date(admin.createdDate).toLocaleString()}</TableCell>
               <TableCell>{admin.questionsCreated}</TableCell>
               <TableCell
                 sx={{
-                  color: admin.status === "Active" ? theme.palette.success.main : theme.palette.error.main,
+                  color: admin.accessStatus === "Active" ? theme.palette.success.main : theme.palette.error.main,
                   fontWeight: "bold",
                 }}
               >
-                {admin.status}
+                {admin.accessStatus}
               </TableCell>
               <TableCell>
                 <IconButton onClick={(event) => handleMenuClick(event, admin)}>
@@ -113,8 +144,12 @@ const SuperAdminDashboard = () => {
           <TextField margin="dense" label="Default Password" fullWidth value={newAdmin.password} disabled />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary">Cancel</Button>
-          <Button onClick={handleClose} variant="contained" color="primary">Create</Button>
+          <Button onClick={handleClose} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleCreateAdmin} variant="contained" color="primary">
+            Create
+          </Button>
         </DialogActions>
       </Dialog>
 

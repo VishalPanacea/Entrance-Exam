@@ -34,7 +34,7 @@ const Navbar = () => {
       <Toolbar sx={{ display: "flex", justifyContent: "space-between", padding: "0 20px" }}>
         {/* LOGO / TITLE */}
         <Typography variant="h6" sx={{ fontWeight: "bold", color: "white" }}>
-          Super Admin Dashboard
+          Entrance Exam
         </Typography>
 
         {/* USER AVATAR */}
