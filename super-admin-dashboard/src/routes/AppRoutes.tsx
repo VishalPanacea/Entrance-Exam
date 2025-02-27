@@ -64,6 +64,7 @@ import QuestionBank from "../pages/QuestionBank";
 import SuperAdminDashboard from "../pages/SuperadminDashboard";
 import StudentSignup from "../auth/signup";
 import LoginPage from "../auth/login";
+import StudentHomePage from "../StudentPage/StudentHomePage";
 
 const AppRoutes = () => {
 //   const { user } = useAuth(); // Check if the user is authenticated
@@ -85,6 +86,7 @@ const AppRoutes = () => {
           <Route path="/student" element={<StudentManagement />} />
           <Route path="/exam" element={<ExamStats />} />
           <Route path="*" element={<Unauthorized />} />
+          <Route path="/student-home" element={<StudentHomePage />} />
         </>
       )}
     </Routes>
